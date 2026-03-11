@@ -1,17 +1,17 @@
-# fidloy-sdk-js
+# fidloy
 
 Simple JavaScript SDK for Fidloy API.
 
 ## Install
 
 ```bash
-npm install fidloy-sdk-js
+npm install fidloy
 ```
 
 ## Very Simple Usage
 
 ```js
-import { Fidloy } from "fidloy-sdk-js";
+import { Fidloy } from "fidloy";
 
 const client = new Fidloy({ apiKey: "YOUR_API_KEY" });
 
@@ -30,4 +30,3 @@ No base URL needed for basic use.
 npm login
 npm publish --access public
 ```
-# fidloy-npm-sdk

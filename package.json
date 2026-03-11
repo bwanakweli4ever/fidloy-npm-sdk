@@ -1,6 +1,6 @@
 {
-  "name": "fidloy-sdk-js",
-  "version": "0.1.0",
+  "name": "fidloy",
+  "version": "0.1.1",
   "description": "Official JavaScript SDK for Fidloy API",
   "type": "module",
   "main": "src/index.js",
@@ -26,7 +26,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/bwanakweli4ever/fidloy_sdk.git"
+    "url": "https://github.com/bwanakweli4ever/fidloy-npm-sdk.git"
   },
   "engines": {
     "node": ">=18"
