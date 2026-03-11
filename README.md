@@ -24,6 +24,15 @@ console.log(transactions);
 
 No base URL needed for basic use.
 
+## Features
+
+- API-key authenticated requests
+- Point balance checking and point rules listing
+- Coupon validation and code checking
+- Customer and transaction management
+- Reward history tracking
+- Simple and intuitive async/await interface
+
 ## Examples
 
 ### Get point balance
