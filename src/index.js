@@ -1,57 +1,38 @@
-// ---------------------------------------------------------------------------
-// Error classes
-// ---------------------------------------------------------------------------
+export {
+  FidloyError,
+  FidloyAPIError,
+  FidloyAuthError,
+  FidloyNotFoundError,
+  FidloyRateLimitError,
+  FidloyNetworkError
+} from './errors.js';
 
-export class FidloyError extends Error {
-  constructor(message) {
-    super(message);
-    this.name = 'FidloyError';
-  }
-}
+import {
+  FidloyAPIError,
+  FidloyAuthError,
+  FidloyError,
+  FidloyNetworkError,
+  FidloyNotFoundError,
+  FidloyRateLimitError
+} from './errors.js';
 
-export class FidloyAPIError extends FidloyError {
-  /** @param {number} status @param {string} message @param {any} body */
-  constructor(status, message, body = null) {
-    super(`[${status}] ${message}`);
-    this.name = 'FidloyAPIError';
-    this.status = status;
-    this.body = body;
-  }
-}
+import {
+  AuthModule,
+  DEFAULT_BASE_URL,
+  loginWithPassword,
+  refreshAccessToken
+} from './auth-module.js';
 
-export class FidloyAuthError extends FidloyAPIError {
-  constructor(status, message, body) {
-    super(status, message, body);
-    this.name = 'FidloyAuthError';
-  }
-}
+import {
+  BenefitsModule,
+  ChurnRulesModule,
+  OpportunitiesModule,
+  ReferralsModule,
+  extendCustomersModule,
+  extendLoyaltyModule
+} from './merchant-modules.js';
 
-export class FidloyNotFoundError extends FidloyAPIError {
-  constructor(message, body) {
-    super(404, message, body);
-    this.name = 'FidloyNotFoundError';
-  }
-}
-
-export class FidloyRateLimitError extends FidloyAPIError {
-  /** @param {number|null} retryAfter seconds to wait */
-  constructor(retryAfter = null) {
-    const msg = retryAfter != null
-      ? `Rate limit exceeded. Retry after ${retryAfter}s`
-      : 'Rate limit exceeded';
-    super(429, msg);
-    this.name = 'FidloyRateLimitError';
-    this.retryAfter = retryAfter;
-  }
-}
-
-export class FidloyNetworkError extends FidloyError {
-  constructor(message, cause) {
-    super(message);
-    this.name = 'FidloyNetworkError';
-    this.cause = cause;
-  }
-}
+export { loginWithPassword, refreshAccessToken };
 
 // ---------------------------------------------------------------------------
 // Structured API modules
@@ -372,6 +353,9 @@ class LoyaltyModule {
   }
 }
 
+extendCustomersModule(CustomersModule);
+extendLoyaltyModule(LoyaltyModule);
+
 class ReceiptsModule {
   constructor(client) { this._c = client; }
 
@@ -405,8 +389,6 @@ class WebhooksModule {
 // Core client
 // ---------------------------------------------------------------------------
 
-const DEFAULT_BASE_URL = 'https://api.fidloy.com/api';
-
 export class Fidloy {
   /**
    * @param {object} opts
@@ -430,12 +412,14 @@ export class Fidloy {
     }
     this._apiKey = apiKey;
     this._bearerToken = bearerToken;
+    this._refreshToken = undefined;
     this.baseUrl = baseUrl.replace(/\/$/, '');
     this._timeout = timeout;
     this._maxRetries = maxRetries;
     this._retryDelay = retryDelay;
 
     // Structured API modules
+    this.auth            = new AuthModule(this);
     this.transactions    = new TransactionsModule(this);
     this.customers       = new CustomersModule(this);
     this.loyalty         = new LoyaltyModule(this);
@@ -444,6 +428,36 @@ export class Fidloy {
     this.events          = new EventsModule(this);
     this.feedback        = new FeedbackModule(this);
     this.retentionRules  = new RetentionRulesModule(this);
+    this.churnRules      = new ChurnRulesModule(this);
+    this.opportunities   = new OpportunitiesModule(this);
+    this.benefits        = new BenefitsModule(this);
+    this.referrals       = new ReferralsModule(this);
+  }
+
+  _applySession(session) {
+    this._bearerToken = session.accessToken;
+    if (session.refreshToken != null) {
+      this._refreshToken = session.refreshToken;
+    }
+  }
+
+  /**
+   * Staff login — returns a configured client plus tokens.
+   * @example
+   * const { client } = await Fidloy.login({ email: 'owner@café.com', password: '…' });
+   * await client.opportunities.list({ businessId: 2 });
+   */
+  static async login({ email, phone, username, password, baseUrl = DEFAULT_BASE_URL }) {
+    const session = await loginWithPassword({
+      email,
+      phone,
+      username,
+      password,
+      baseUrl
+    });
+    const client = new Fidloy({ bearerToken: session.accessToken, baseUrl });
+    client._refreshToken = session.refreshToken;
+    return { client, ...session };
   }
 
   // ------------------------------------------------------------------
