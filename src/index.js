@@ -214,6 +214,7 @@ class EventsModule {
 class FeedbackModule {
   constructor(client) { this._c = client; }
 
+  /** Retention v1 ingest (API key). */
   submit({ externalCustomerId, rating, comment, provider = 'default', businessId }) {
     const body = {
       external_customer_id: externalCustomerId,
@@ -223,6 +224,37 @@ class FeedbackModule {
     if (businessId != null) body.business_id = businessId;
     if (comment != null) body.comment = comment;
     return this._c.request('/v1/feedback', { method: 'POST', body });
+  }
+
+  /** Inbox: recent responses, summary, settings (staff JWT). */
+  getInbox({ businessId } = {}) {
+    const query = businessId != null ? { business_id: businessId } : {};
+    return this._c.request('/customer/feedback', { query });
+  }
+
+  /** Alias for getInbox. */
+  listReceived(opts) {
+    return this.getInbox(opts);
+  }
+
+  updateSettings(settings, { businessId } = {}) {
+    const query = businessId != null ? { business_id: businessId } : {};
+    return this._c.request('/customer/feedback/settings', {
+      method: 'PUT',
+      query,
+      body: settings
+    });
+  }
+
+  sendBulkSms({ message, sendAll = false, customerIds, businessId } = {}) {
+    const query = businessId != null ? { business_id: businessId } : {};
+    const body = { message, send_all: sendAll };
+    if (customerIds?.length) body.customer_ids = customerIds;
+    return this._c.request('/customer/feedback/send-bulk-sms', {
+      method: 'POST',
+      query,
+      body
+    });
   }
 }
 
