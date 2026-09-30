@@ -101,6 +101,34 @@ class TransactionsModule {
       }
     });
   }
+
+  /**
+   * Record a purchase via POST /v1/transactions (external customer id).
+   */
+  createV1({
+    externalCustomerId,
+    amount,
+    transactionDate,
+    currency = 'RWF',
+    storeName,
+    description,
+    receiptId,
+    provider = 'default',
+    businessId
+  }) {
+    const body = {
+      external_customer_id: externalCustomerId,
+      provider,
+      amount,
+      currency,
+      transaction_date: transactionDate
+    };
+    if (businessId != null) body.business_id = businessId;
+    if (storeName != null) body.store_name = storeName;
+    if (description != null) body.description = description;
+    if (receiptId != null) body.receipt_id = receiptId;
+    return this._c.request('/v1/transactions', { method: 'POST', body });
+  }
 }
 
 class CustomersModule {
@@ -141,6 +169,143 @@ class CustomersModule {
       body: { first_name: firstName, last_name: lastName, business_id: businessId, email, phone }
     });
   }
+
+  /** Upsert customer + external id mapping (POST /v1/customers). */
+  upsert({
+    externalCustomerId,
+    firstName,
+    lastName,
+    businessId,
+    email,
+    phone,
+    provider = 'default'
+  }) {
+    const body = {
+      external_customer_id: externalCustomerId,
+      provider,
+      first_name: firstName,
+      last_name: lastName
+    };
+    if (businessId != null) body.business_id = businessId;
+    if (email != null) body.email = email;
+    if (phone != null) body.phone = phone;
+    return this._c.request('/v1/customers', { method: 'POST', body });
+  }
+
+  /** Retention snapshot for an external customer id. */
+  retention(externalCustomerId, { provider = 'default', businessId } = {}) {
+    const path = `/v1/customers/${encodeURIComponent(externalCustomerId)}/retention`;
+    const query = { provider };
+    if (businessId != null) query.business_id = businessId;
+    return this._c.request(path, { query });
+  }
+}
+
+class EventsModule {
+  constructor(client) { this._c = client; }
+
+  track({
+    externalCustomerId,
+    eventType,
+    externalEventId,
+    occurredAt,
+    amount,
+    currency,
+    properties,
+    provider = 'default',
+    businessId
+  }) {
+    const body = {
+      external_customer_id: externalCustomerId,
+      provider,
+      external_event_id: externalEventId,
+      event_type: eventType,
+      occurred_at: occurredAt
+    };
+    if (businessId != null) body.business_id = businessId;
+    if (amount != null) body.amount = amount;
+    if (currency != null) body.currency = currency;
+    if (properties != null) body.properties = properties;
+    return this._c.request('/v1/events', { method: 'POST', body });
+  }
+}
+
+class FeedbackModule {
+  constructor(client) { this._c = client; }
+
+  submit({ externalCustomerId, rating, comment, provider = 'default', businessId }) {
+    const body = {
+      external_customer_id: externalCustomerId,
+      provider,
+      rating
+    };
+    if (businessId != null) body.business_id = businessId;
+    if (comment != null) body.comment = comment;
+    return this._c.request('/v1/feedback', { method: 'POST', body });
+  }
+}
+
+class RetentionRulesModule {
+  constructor(client) { this._c = client; }
+
+  list({ businessId, includeInactive = false } = {}) {
+    const query = { include_inactive: includeInactive };
+    if (businessId != null) query.business_id = businessId;
+    return this._c.request('/v1/retention/rules', { query });
+  }
+
+  create({
+    name,
+    triggerKind,
+    actionKind,
+    triggerConfig,
+    actionConfig,
+    isActive = true,
+    businessId
+  }) {
+    const body = {
+      name,
+      trigger_kind: triggerKind,
+      action_kind: actionKind,
+      trigger_config: triggerConfig ?? {},
+      action_config: actionConfig ?? {},
+      is_active: isActive
+    };
+    if (businessId != null) body.business_id = businessId;
+    return this._c.request('/v1/retention/rules', { method: 'POST', body });
+  }
+
+  get(ruleId, { businessId } = {}) {
+    const query = {};
+    if (businessId != null) query.business_id = businessId;
+    return this._c.request(`/v1/retention/rules/${ruleId}`, { query });
+  }
+
+  update(ruleId, {
+    name,
+    triggerKind,
+    triggerConfig,
+    actionKind,
+    actionConfig,
+    isActive,
+    businessId
+  } = {}) {
+    const body = {};
+    if (businessId != null) body.business_id = businessId;
+    if (name != null) body.name = name;
+    if (triggerKind != null) body.trigger_kind = triggerKind;
+    if (triggerConfig != null) body.trigger_config = triggerConfig;
+    if (actionKind != null) body.action_kind = actionKind;
+    if (actionConfig != null) body.action_config = actionConfig;
+    if (isActive != null) body.is_active = isActive;
+    return this._c.request(`/v1/retention/rules/${ruleId}`, { method: 'PATCH', body });
+  }
+
+  deactivate(ruleId, { businessId } = {}) {
+    const query = {};
+    if (businessId != null) query.business_id = businessId;
+    return this._c.request(`/v1/retention/rules/${ruleId}`, { method: 'DELETE', query });
+  }
 }
 
 class LoyaltyModule {
@@ -170,6 +335,40 @@ class LoyaltyModule {
     return this._c.request(`/loyalty/accounts/${businessId}/rewards-history`, {
       query: { customer_id: customerId, event_type: eventType, page, page_size: pageSize }
     });
+  }
+
+  getPointsBalance({ businessId, customerId }) {
+    return this._c.request(`/loyalty/points/business/${businessId}/customer/${customerId}/points`);
+  }
+
+  listPointRules({ businessId, ruleType } = {}) {
+    return this._c.request('/loyalty/points/rules', {
+      query: { business_id: businessId, rule_type: ruleType }
+    });
+  }
+
+  listPointRulesCategorized({ businessId } = {}) {
+    return this._c.request('/loyalty/points/rules/categorized', {
+      query: { business_id: businessId }
+    });
+  }
+
+  validateCoupon({ businessId, code, amount, customerId, phone, email }) {
+    return this._c.request('/loyalty/coupons/validate', {
+      method: 'POST',
+      query: { business_id: businessId },
+      body: {
+        code,
+        amount,
+        customer_id: customerId,
+        phone,
+        email
+      }
+    });
+  }
+
+  checkCouponValidity({ businessId, code, amount, customerId, phone, email }) {
+    return this.validateCoupon({ businessId, code, amount, customerId, phone, email });
   }
 }
 
@@ -237,11 +436,14 @@ export class Fidloy {
     this._retryDelay = retryDelay;
 
     // Structured API modules
-    this.transactions = new TransactionsModule(this);
-    this.customers    = new CustomersModule(this);
-    this.loyalty      = new LoyaltyModule(this);
-    this.receipts     = new ReceiptsModule(this);
-    this.webhooks     = new WebhooksModule(this);
+    this.transactions    = new TransactionsModule(this);
+    this.customers       = new CustomersModule(this);
+    this.loyalty         = new LoyaltyModule(this);
+    this.receipts        = new ReceiptsModule(this);
+    this.webhooks        = new WebhooksModule(this);
+    this.events          = new EventsModule(this);
+    this.feedback        = new FeedbackModule(this);
+    this.retentionRules  = new RetentionRulesModule(this);
   }
 
   // ------------------------------------------------------------------
@@ -361,6 +563,31 @@ export class Fidloy {
   /** List customers. Use `customers.paginate()` to stream all pages. */
   listCustomers({ businessId, limit = 100, skip = 0 } = {}) {
     return this.customers.list({ businessId, limit, skip });
+  }
+
+  /** Shortcut for `loyalty.getPointsBalance`. */
+  getPointsBalance({ businessId, customerId } = {}) {
+    return this.loyalty.getPointsBalance({ businessId, customerId });
+  }
+
+  /** Shortcut for `loyalty.listPointRules`. */
+  listPointRules({ businessId, ruleType } = {}) {
+    return this.loyalty.listPointRules({ businessId, ruleType });
+  }
+
+  /** Shortcut for `loyalty.listPointRulesCategorized`. */
+  listPointRulesCategorized({ businessId } = {}) {
+    return this.loyalty.listPointRulesCategorized({ businessId });
+  }
+
+  /** Shortcut for `loyalty.validateCoupon`. */
+  validateCoupon({ businessId, code, amount, customerId, phone, email } = {}) {
+    return this.loyalty.validateCoupon({ businessId, code, amount, customerId, phone, email });
+  }
+
+  /** Backward-friendly alias for validateCoupon. */
+  checkCouponValidity({ businessId, code, amount, customerId, phone, email } = {}) {
+    return this.loyalty.checkCouponValidity({ businessId, code, amount, customerId, phone, email });
   }
 }
 

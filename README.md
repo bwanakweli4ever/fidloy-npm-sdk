@@ -87,6 +87,57 @@ const categorized = await client.listPointRulesCategorized({ businessId: 2 });
 console.log(categorized);
 ```
 
+## Retention engine (API v1)
+
+Use a business **API key**. `businessId` is optional when the key is scoped to one merchant.
+
+```js
+import { Fidloy } from "fidloy";
+
+const client = new Fidloy({ apiKey: process.env.FIDLOY_API_KEY });
+
+await client.customers.upsert({
+  externalCustomerId: "cus_123",
+  firstName: "Alex",
+  lastName: "Dev",
+  email: "alex@example.com",
+});
+
+await client.events.track({
+  externalCustomerId: "cus_123",
+  eventType: "subscription_renewed",
+  externalEventId: "evt_unique_1",
+  occurredAt: "2026-09-30T12:00:00Z",
+  amount: 49,
+  properties: { plan: "pro" },
+});
+
+await client.transactions.createV1({
+  externalCustomerId: "cus_123",
+  amount: 12000,
+  transactionDate: "2026-09-30T12:00:00Z",
+  storeName: "Online",
+});
+
+await client.feedback.submit({
+  externalCustomerId: "cus_123",
+  rating: 4,
+  comment: "Great service",
+});
+
+const snap = await client.customers.retention("cus_123");
+console.log(snap.state, snap.score, snap.reasons);
+
+const rules = await client.retentionRules.list();
+await client.retentionRules.create({
+  name: "At risk SMS",
+  triggerKind: "customer_state",
+  triggerConfig: { state: "AT_RISK" },
+  actionKind: "send_sms",
+  actionConfig: { message: "We miss you!" },
+});
+```
+
 ## Publish to npm
 
 ```bash
